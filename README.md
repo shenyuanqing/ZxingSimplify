@@ -1,6 +1,8 @@
 # ZxingSimplify
     一个精简的Zxing扫码库。（A Zxing simplify libaray）
 
+![ZxingSimplify](https://github.com/shenyuanqing/ZxingSimplify/blob/master/images/zxingsimplify.png)
+
 Gradle
 ------
 ```
@@ -16,8 +18,6 @@ Usage
 *去除了ViewfinderView,使用XML布局。
 
 *可暂停及恢复扫码。
-
-![ZxingSimplify](https://github.com/shenyuanqing/ZxingSimplify/blob/master/images/zxingsimplify.png)
 
 ```
     startActivityForResult(new Intent(MainActivity.this, CaptureActivity.class),REQUEST_SCAN);
