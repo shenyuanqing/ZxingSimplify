@@ -1,6 +1,8 @@
 # ZxingSimplify
     一个精简的Zxing扫码库。（A Zxing simplify library）
 
+![ZxingSimplify](https://github.com/shenyuanqing/ZxingSimplify/blob/master/images/zxingscan.png)
+
 ![ZxingSimplify](https://github.com/shenyuanqing/ZxingSimplify/blob/master/images/zxingsimplify.png)
 
 Gradle
