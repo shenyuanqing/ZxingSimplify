@@ -20,7 +20,12 @@ Usage
 * 可暂停及恢复扫码。
 
 ```
-    startActivityForResult(new Intent(MainActivity.this, CaptureActivity.class),REQUEST_SCAN);
+    /**
+     * 跳转到扫码页
+     */
+    private void jumpScanPage() {
+        startActivityForResult(new Intent(MainActivity.this, CaptureActivity.class),REQUEST_SCAN);
+    }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
