@@ -17,6 +17,8 @@ Usage
 
 *可暂停及恢复扫码。
 
+![ZxingSimplify](https://github.com/shenyuanqing/ZxingSimplify/blob/master/images/zxingsimplify.png)
+
 ```
     startActivityForResult(new Intent(MainActivity.this, CaptureActivity.class),REQUEST_SCAN);
 
