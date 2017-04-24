@@ -13,11 +13,11 @@ dependencies {
 
 Usage
 -----
-*Android 6.0以上在跳转到扫码页之前先取得运行时权限，具体参考MainActivity。
+* Android 6.0以上在跳转到扫码页之前先取得运行时权限，具体参考MainActivity。
 
-*去除了ViewfinderView,使用XML布局。
+* 去除了ViewfinderView,使用XML布局。
 
-*可暂停及恢复扫码。
+* 可暂停及恢复扫码。
 
 ```
     startActivityForResult(new Intent(MainActivity.this, CaptureActivity.class),REQUEST_SCAN);
