@@ -2,7 +2,7 @@
 
     一个精简的安卓Zxing扫码库。（A Zxing simplify library for Android）
 
-    * 去除了ViewfinderView，使用XML布局。
+    去除了ViewfinderView，使用XML布局。
 
 ![ZxingSimplify](https://github.com/shenyuanqing/ZxingSimplify/blob/master/images/zxingscan.png)
 
@@ -19,7 +19,7 @@ dependencies {
 Usage
 -----
 
-* Android 6.0以上在跳转到扫码页之前先取得运行时权限，具体参考MainActivity。
+Android 6.0以上在跳转到扫码页之前先取得运行时权限，具体参考MainActivity。
 
 ```
     /**
