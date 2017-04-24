@@ -7,15 +7,15 @@ ext {
     bintrayName = 'zxing'
 
     publishedGroupId = 'com.github.shenyuanqing.zxing'
-    libraryName = 'zxingsimplify'
-    artifact = 'zxingsimplify'
+    libraryName = 'zxing-simplify'
+    artifact = 'zxing-simplify'
 
     libraryDescription = 'a google zxing simplify library'
 
     siteUrl = 'https://github.com/shenyuanqing/ZxingSimplify'
     gitUrl = 'https://github.com/shenyuanqing/ZxingSimplify.git'
 
-    libraryVersion = '1.0.1'
+    libraryVersion = '1.0.4'
 
     developerId = 'shenyuanqing'
     developerName = 'shen'
@@ -153,12 +153,12 @@ bintray {
                 //Optional. The passphrase for GPG signing'
             }
             //第一次同步mavenCentral成功后可用下面代码自动同步
-//            mavenCentralSync {
-//                sync = true
-//                user = properties.getProperty("sonatype.user")
-//                password = properties.getProperty("sonatype.password")
-//                close = '1'
-//            }
+            mavenCentralSync {
+                sync = true
+                user = properties.getProperty("sonatype.user")
+                password = properties.getProperty("sonatype.password")
+                close = '1'
+            }
         }
     }
 }

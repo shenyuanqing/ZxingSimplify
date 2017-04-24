@@ -9,7 +9,7 @@ Gradle
 ------
 ```
 dependencies {
-    compile 'com.github.shenyuanqing.zxing:zxingsimplify:1.0.1'
+    compile 'com.github.shenyuanqing.zxing:zxing-simplify:1.0.4'
 }
 ```
 
