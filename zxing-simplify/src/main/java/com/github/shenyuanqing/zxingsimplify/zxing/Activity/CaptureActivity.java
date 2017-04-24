@@ -203,20 +203,20 @@ public class CaptureActivity extends Activity implements SurfaceHolder.Callback 
         beepManager.playBeepSoundAndVibrate();
 
         //把扫码结果返回到MainActivity
-//        Intent intent = new Intent();
-//        intent.putExtra("barCode", rawResult.getText());
-//        setResult(RESULT_OK, intent);
-//        finish();
+        Intent intent = new Intent();
+        intent.putExtra("barCode", rawResult.getText());
+        setResult(RESULT_OK, intent);
+        finish();
 
         //先暂停扫码，然后延时启动扫码
-        Toast.makeText(this, rawResult.getText(), Toast.LENGTH_LONG).show();
-        pauseScan();
-        new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                startScan();
-            }
-        }, 2000);
+//        Toast.makeText(this, rawResult.getText(), Toast.LENGTH_LONG).show();
+//        pauseScan();
+//        new Handler().postDelayed(new Runnable() {
+//            @Override
+//            public void run() {
+//                startScan();
+//            }
+//        }, 2000);
     }
 
     /**
