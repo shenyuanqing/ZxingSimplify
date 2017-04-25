@@ -11,7 +11,7 @@ Gradle
 ------
 ```
 dependencies {
-    compile 'com.github.shenyuanqing.zxing:zxing-simplify:1.0.4'
+    compile 'com.github.shenyuanqing.zxing:zxing-simplify:1.0.5'
 }
 ```
 
@@ -37,3 +37,11 @@ Android 6.0以上在跳转到扫码页之前先取得运行时权限，具体参
     }
 ```
 
+Changelog
+-----
+
+* **1.0.5**
+    *增加从相册选取二维码识别功能
+    *增加开关闪光灯功能
+* **1.0.4**
+    *增加扫描二维码、条码等功能
