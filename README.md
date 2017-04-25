@@ -5,7 +5,6 @@
     去除了ViewfinderView，使用XML布局。
 
 ![ZxingSimplify](https://github.com/shenyuanqing/ZxingSimplify/blob/master/images/zxingscan.png)
-
 ![ZxingSimplify](https://github.com/shenyuanqing/ZxingSimplify/blob/master/images/zxingsimplify.png)
 
 Gradle
@@ -32,7 +31,7 @@ Android 6.0以上在跳转到扫码页之前先取得运行时权限，具体参
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if(requestCode == REQUEST_SCAN && resultCode == RESULT_OK){
+        if(requestCode == REQUEST_SCAN && resultCode == RESULT_OK) {
             Toast.makeText(mContext,data.getStringExtra("barCode"),Toast.LENGTH_LONG).show();
         }
     }
