@@ -1,13 +1,17 @@
 package com.github.shenyuanqing.zxingsimplify.zxing.Activity;
 
+import android.Manifest;
 import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ContentUris;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.res.Resources;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Rect;
@@ -16,8 +20,14 @@ import android.hardware.Camera;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.DocumentsContract;
+import android.provider.MediaStore;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.TypedValue;
@@ -46,18 +56,23 @@ import com.google.zxing.BinaryBitmap;
 import com.google.zxing.ChecksumException;
 import com.google.zxing.DecodeHintType;
 import com.google.zxing.FormatException;
+import com.google.zxing.MultiFormatReader;
 import com.google.zxing.NotFoundException;
 import com.google.zxing.RGBLuminanceSource;
+import com.google.zxing.Reader;
 import com.google.zxing.Result;
 import com.google.zxing.common.HybridBinarizer;
 import com.google.zxing.qrcode.QRCodeReader;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;
+import java.nio.charset.Charset;
 import java.util.Hashtable;
 
 public class CaptureActivity extends Activity implements SurfaceHolder.Callback {
     private Context context;
+    private Activity activity;
     private static final String TAG = CaptureActivity.class.getSimpleName();
     private TextView tvLight;
     private ToggleButton tbLight;
@@ -70,7 +85,6 @@ public class CaptureActivity extends Activity implements SurfaceHolder.Callback 
     private static final int REQUEST_ALBUM = 0;
     private boolean isPause = false;
     private Camera camera;
-    private ImageCrop imageCrop = new ImageCrop(this);
     private CaptureActivityHandler handler;
     private Rect mCropRect = null;
     private CameraManager cameraManager;
@@ -97,6 +111,7 @@ public class CaptureActivity extends Activity implements SurfaceHolder.Callback 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_capture);
         context = this;
+        activity = this;
 
         findViewById(R.id.iv_back).setOnClickListener(new View.OnClickListener() {
             @Override
@@ -132,7 +147,7 @@ public class CaptureActivity extends Activity implements SurfaceHolder.Callback 
         findViewById(R.id.ll_album).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                imageCrop.openAlbum();
+                getRuntimeRight();
             }
         });
     }
@@ -418,6 +433,13 @@ public class CaptureActivity extends Activity implements SurfaceHolder.Callback 
                 dpValue, context.getResources().getDisplayMetrics());
     }
 
+    /**
+     * 相册二维码识别、闪光灯部分分界线
+     ****************************************************************************************************/
+
+    private static final int SELECT_PIC_KITKAT = 1001;
+    private static final int SELECT_PIC = 1002;
+
     //打开闪光灯
     private void openFlashlight() {
         camera = cameraManager.getCamera();
@@ -435,43 +457,82 @@ public class CaptureActivity extends Activity implements SurfaceHolder.Callback 
         camera.startPreview();
     }
 
+    /**
+     * 获得运行时权限
+     */
+    private void getRuntimeRight() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(activity, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
+        } else {
+            openAlbum();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        switch (requestCode) {
+            case 1:
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    openAlbum();
+                } else {
+                    Toast.makeText(context, "拒绝", Toast.LENGTH_LONG).show();
+                }
+            default:
+                break;
+        }
+    }
+
+    /**
+     * 跳转到图片选择
+     */
+    public void openAlbum() {
+        Intent intent = new Intent(Intent.ACTION_PICK);
+        intent.setType("image/*");
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+            startActivityForResult(intent, SELECT_PIC_KITKAT);
+        } else {
+            startActivityForResult(intent, SELECT_PIC);
+        }
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == ImageCrop.SELECT_PIC && resultCode == Activity.RESULT_OK) { //4.4以下图库
+        if (requestCode == SELECT_PIC && resultCode == Activity.RESULT_OK) { //4.4以下图库
             Uri uri = data.getData();
-            String path = imageCrop.getPath(context, uri);
+            String path = getPath(context, uri);
             Result result = scanningImage(path);
             if (result == null) {
-                Looper.prepare();
-                Toast.makeText(context, "图片格式有误", Toast.LENGTH_LONG).show();
-                Looper.loop();
+                Toast.makeText(context, "未发现二维码/条形码", Toast.LENGTH_LONG).show();
             } else {
-                Log.e("result", result.toString());
                 // 数据返回
-//                String recode = recode(result.toString());
-//                judgeCode(recode);
+                String recode = recode(result.toString());
+                Toast.makeText(context, recode, Toast.LENGTH_LONG).show();
             }
         }
 
         //相册返回
-        if (requestCode == ImageCrop.SELECT_PIC_KITKAT && resultCode == Activity.RESULT_OK) { //4.4及以上图库
+        if (requestCode == SELECT_PIC_KITKAT && resultCode == Activity.RESULT_OK) { //4.4及以上图库
             Uri uri = data.getData();
-            String path = imageCrop.getPath(context, uri);
+            String path = getPath(context, uri);
             Result result = scanningImage(path);
             if (result == null) {
-                Looper.prepare();
                 Toast.makeText(context, "未发现二维码/条形码", Toast.LENGTH_LONG).show();
-                Looper.loop();
             } else {
-                Log.e("result", result.toString());
                 // 数据返回
-//                String recode = recode(result.toString());
-//                judgeCode(recode);
+                String recode = recode(result.toString());
+                Toast.makeText(context, recode, Toast.LENGTH_LONG).show();
             }
         }
     }
 
+    /**
+     * 图片识别
+     *
+     * @param path
+     * @return
+     */
     protected Result scanningImage(String path) {
         if (TextUtils.isEmpty(path)) {
             return null;
@@ -491,7 +552,7 @@ public class CaptureActivity extends Activity implements SurfaceHolder.Callback 
         scanBitmap.getPixels(intArray, 0, scanBitmap.getWidth(), 0, 0, scanBitmap.getWidth(), scanBitmap.getHeight());
         RGBLuminanceSource source = new RGBLuminanceSource(scanBitmap.getWidth(), scanBitmap.getHeight(), intArray);
         BinaryBitmap bitmap1 = new BinaryBitmap(new HybridBinarizer(source));
-        QRCodeReader reader = new QRCodeReader();
+        Reader reader = new MultiFormatReader();
         try {
             return reader.decode(bitmap1, hints);
         } catch (NotFoundException e) {
@@ -500,6 +561,167 @@ public class CaptureActivity extends Activity implements SurfaceHolder.Callback 
             e.printStackTrace();
         } catch (FormatException e) {
             e.printStackTrace();
+        }
+        return null;
+    }
+
+    /**
+     * 中文乱码处理
+     *
+     * @param str
+     * @return
+     */
+    private String recode(String str) {
+        String formart = "";
+        try {
+            boolean ISO = Charset.forName("ISO-8859-1").newEncoder().canEncode(str);
+            if (ISO) {
+                formart = new String(str.getBytes("ISO-8859-1"), "GB2312");
+            } else {
+                formart = str;
+            }
+        } catch (UnsupportedEncodingException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        return formart;
+    }
+
+    /**
+     * 得到图片路径
+     *
+     * @param context
+     * @param uri
+     * @return
+     */
+    public String getPath(final Context context, final Uri uri) {
+
+        final boolean isKitKat = Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT;
+
+        // DocumentProvider
+        if (isKitKat && DocumentsContract.isDocumentUri(context, uri)) {
+            // ExternalStorageProvider
+            if (isExternalStorageDocument(uri)) {
+                final String docId = DocumentsContract.getDocumentId(uri);
+                final String[] split = docId.split(":");
+                final String type = split[0];
+
+                if ("primary".equalsIgnoreCase(type)) {
+                    return Environment.getExternalStorageDirectory() + "/" + split[1];
+                }
+
+                // TODO handle non-primary volumes
+            }
+            // DownloadsProvider
+            else if (isDownloadsDocument(uri)) {
+
+                final String id = DocumentsContract.getDocumentId(uri);
+                final Uri contentUri = ContentUris.withAppendedId(
+                        Uri.parse("content://downloads/public_downloads"), Long.valueOf(id));
+
+                return getDataColumn(context, contentUri, null, null);
+            }
+            // MediaProvider
+            else if (isMediaDocument(uri)) {
+                final String docId = DocumentsContract.getDocumentId(uri);
+                final String[] split = docId.split(":");
+                final String type = split[0];
+
+                Uri contentUri = null;
+                if ("image".equals(type)) {
+                    contentUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+                } else if ("video".equals(type)) {
+                    contentUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
+                } else if ("audio".equals(type)) {
+                    contentUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
+                }
+
+                final String selection = "_id=?";
+                final String[] selectionArgs = new String[]{
+                        split[1]
+                };
+
+                return getDataColumn(context, contentUri, selection, selectionArgs);
+            }
+        }
+        // MediaStore (and general)
+        else if ("content".equalsIgnoreCase(uri.getScheme())) {
+
+            // Return the remote address
+            if (isGooglePhotosUri(uri))
+                return uri.getLastPathSegment();
+
+            return getDataColumn(context, uri, null, null);
+        }
+        // File
+        else if ("file".equalsIgnoreCase(uri.getScheme())) {
+            return uri.getPath();
+        }
+
+        return null;
+    }
+
+    /**
+     * @param uri The Uri to check.
+     * @return Whether the Uri authority is ExternalStorageProvider.
+     */
+    public static boolean isExternalStorageDocument(Uri uri) {
+        return "com.android.externalstorage.documents".equals(uri.getAuthority());
+    }
+
+    /**
+     * @param uri The Uri to check.
+     * @return Whether the Uri authority is DownloadsProvider.
+     */
+    public static boolean isDownloadsDocument(Uri uri) {
+        return "com.android.providers.downloads.documents".equals(uri.getAuthority());
+    }
+
+    /**
+     * @param uri The Uri to check.
+     * @return Whether the Uri authority is MediaProvider.
+     */
+    public static boolean isMediaDocument(Uri uri) {
+        return "com.android.providers.media.documents".equals(uri.getAuthority());
+    }
+
+    /**
+     * @param uri The Uri to check.
+     * @return Whether the Uri authority is Google Photos.
+     */
+    public static boolean isGooglePhotosUri(Uri uri) {
+        return "com.google.android.apps.photos.content".equals(uri.getAuthority());
+    }
+
+    /**
+     * Get the value of the data column for this Uri. This is useful for
+     * MediaStore Uris, and other file-based ContentProviders.
+     *
+     * @param context       The context.
+     * @param uri           The Uri to query.
+     * @param selection     (Optional) Filter used in the query.
+     * @param selectionArgs (Optional) Selection arguments used in the query.
+     * @return The value of the _data column, which is typically a file path.
+     */
+    public static String getDataColumn(Context context, Uri uri, String selection,
+                                       String[] selectionArgs) {
+
+        Cursor cursor = null;
+        final String column = "_data";
+        final String[] projection = {
+                column
+        };
+
+        try {
+            cursor = context.getContentResolver().query(uri, projection, selection, selectionArgs,
+                    null);
+            if (cursor != null && cursor.moveToFirst()) {
+                final int index = cursor.getColumnIndexOrThrow(column);
+                return cursor.getString(index);
+            }
+        } finally {
+            if (cursor != null)
+                cursor.close();
         }
         return null;
     }
