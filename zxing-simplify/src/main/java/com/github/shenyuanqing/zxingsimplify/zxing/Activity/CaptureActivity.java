@@ -7,20 +7,33 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Rect;
+import android.graphics.SurfaceTexture;
+import android.hardware.Camera;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
+import android.text.TextUtils;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.animation.LinearInterpolator;
 import android.view.animation.TranslateAnimation;
+import android.widget.CompoundButton;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
+import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.ToggleButton;
 
 
 import com.github.shenyuanqing.zxingsimplify.R;
@@ -29,19 +42,35 @@ import com.github.shenyuanqing.zxingsimplify.zxing.decode.DecodeThread;
 import com.github.shenyuanqing.zxingsimplify.zxing.utils.BeepManager;
 import com.github.shenyuanqing.zxingsimplify.zxing.utils.CaptureActivityHandler;
 import com.github.shenyuanqing.zxingsimplify.zxing.utils.InactivityTimer;
+import com.google.zxing.BinaryBitmap;
+import com.google.zxing.ChecksumException;
+import com.google.zxing.DecodeHintType;
+import com.google.zxing.FormatException;
+import com.google.zxing.NotFoundException;
+import com.google.zxing.RGBLuminanceSource;
 import com.google.zxing.Result;
+import com.google.zxing.common.HybridBinarizer;
+import com.google.zxing.qrcode.QRCodeReader;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.util.Hashtable;
 
 public class CaptureActivity extends Activity implements SurfaceHolder.Callback {
+    private Context context;
     private static final String TAG = CaptureActivity.class.getSimpleName();
+    private TextView tvLight;
+    private ToggleButton tbLight;
+    private ImageView ivAlbum;
     private ImageView scanLine;
     private SurfaceView scanPreview = null;
     private RelativeLayout scanContainer;
     private RelativeLayout scanCropView;
 
+    private static final int REQUEST_ALBUM = 0;
     private boolean isPause = false;
+    private Camera camera;
+    private ImageCrop imageCrop = new ImageCrop(this);
     private CaptureActivityHandler handler;
     private Rect mCropRect = null;
     private CameraManager cameraManager;
@@ -67,8 +96,45 @@ public class CaptureActivity extends Activity implements SurfaceHolder.Callback 
         Window window = getWindow();
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_capture);
+        context = this;
 
+        findViewById(R.id.iv_back).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                finish();
+            }
+        });
+
+        init();
         initScan();
+    }
+
+    private void init() {
+        tvLight = (TextView) findViewById(R.id.tv_light);
+        ivAlbum = (ImageView) findViewById(R.id.iv_album);
+        tbLight = (ToggleButton) findViewById(R.id.tb_light);
+
+        //闪光灯控制
+        tbLight.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if (isChecked) {
+                    tvLight.setText("关灯");
+                    openFlashlight();
+                } else {
+                    tvLight.setText("开灯");
+                    closeFlashlight();
+                }
+            }
+        });
+
+        //打开相册
+        findViewById(R.id.ll_album).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                imageCrop.openAlbum();
+            }
+        });
     }
 
     /**
@@ -350,5 +416,91 @@ public class CaptureActivity extends Activity implements SurfaceHolder.Callback 
     public static float dp2px(Context context, float dpValue) {
         return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP,
                 dpValue, context.getResources().getDisplayMetrics());
+    }
+
+    //打开闪光灯
+    private void openFlashlight() {
+        camera = cameraManager.getCamera();
+        Camera.Parameters parameters = camera.getParameters();
+        parameters.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH);
+        camera.setParameters(parameters);
+        camera.startPreview();
+    }
+
+    //关闭闪光灯
+    private void closeFlashlight() {
+        Camera.Parameters parameters = camera.getParameters();
+        parameters.setFlashMode(Camera.Parameters.FLASH_MODE_OFF);
+        camera.setParameters(parameters);
+        camera.startPreview();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == ImageCrop.SELECT_PIC && resultCode == Activity.RESULT_OK) { //4.4以下图库
+            Uri uri = data.getData();
+            String path = imageCrop.getPath(context, uri);
+            Result result = scanningImage(path);
+            if (result == null) {
+                Looper.prepare();
+                Toast.makeText(context, "图片格式有误", Toast.LENGTH_LONG).show();
+                Looper.loop();
+            } else {
+                Log.e("result", result.toString());
+                // 数据返回
+//                String recode = recode(result.toString());
+//                judgeCode(recode);
+            }
+        }
+
+        //相册返回
+        if (requestCode == ImageCrop.SELECT_PIC_KITKAT && resultCode == Activity.RESULT_OK) { //4.4及以上图库
+            Uri uri = data.getData();
+            String path = imageCrop.getPath(context, uri);
+            Result result = scanningImage(path);
+            if (result == null) {
+                Looper.prepare();
+                Toast.makeText(context, "未发现二维码/条形码", Toast.LENGTH_LONG).show();
+                Looper.loop();
+            } else {
+                Log.e("result", result.toString());
+                // 数据返回
+//                String recode = recode(result.toString());
+//                judgeCode(recode);
+            }
+        }
+    }
+
+    protected Result scanningImage(String path) {
+        if (TextUtils.isEmpty(path)) {
+            return null;
+        }
+        // DecodeHintType 和EncodeHintType
+        Hashtable<DecodeHintType, String> hints = new Hashtable<>();
+        hints.put(DecodeHintType.CHARACTER_SET, "utf-8"); // 设置二维码内容的编码
+        BitmapFactory.Options options = new BitmapFactory.Options();
+//        options.inJustDecodeBounds = true; // 先获取原大小
+        options.inJustDecodeBounds = false; // 获取新的大小
+        int sampleSize = (int) (options.outHeight / (float) 200);
+        if (sampleSize <= 0)
+            sampleSize = 1;
+        options.inSampleSize = sampleSize;
+        Bitmap scanBitmap = BitmapFactory.decodeFile(path, options);
+        int[] intArray = new int[scanBitmap.getWidth() * scanBitmap.getHeight()];
+        scanBitmap.getPixels(intArray, 0, scanBitmap.getWidth(), 0, 0, scanBitmap.getWidth(), scanBitmap.getHeight());
+        RGBLuminanceSource source = new RGBLuminanceSource(scanBitmap.getWidth(), scanBitmap.getHeight(), intArray);
+        BinaryBitmap bitmap1 = new BinaryBitmap(new HybridBinarizer(source));
+        QRCodeReader reader = new QRCodeReader();
+        try {
+            return reader.decode(bitmap1, hints);
+        } catch (NotFoundException e) {
+            e.printStackTrace();
+        } catch (ChecksumException e) {
+            e.printStackTrace();
+        } catch (FormatException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }
