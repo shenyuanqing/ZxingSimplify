@@ -2,8 +2,6 @@
 
     一个精简的安卓Zxing扫码库。（A Zxing simplify library for Android）
 
-    去除了ViewfinderView，使用XML布局。
-
 ![ZxingSimplify](https://github.com/shenyuanqing/ZxingSimplify/blob/master/images/zxingscan.png)
 ![ZxingSimplify](https://github.com/shenyuanqing/ZxingSimplify/blob/master/images/zxingsimplify.png)
 
